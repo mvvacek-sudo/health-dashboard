@@ -1,0 +1,687 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Health">
+<meta name="theme-color" content="#0d0f12">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<title>Health Dashboard</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+:root{
+  --bg:#0d0f12;--bg2:#13161b;--bg3:#1a1e26;--bg4:#222733;
+  --border:rgba(255,255,255,0.07);--border2:rgba(255,255,255,0.12);
+  --text:#e8eaf0;--text2:#8b919e;--text3:#555c6b;
+  --accent:#4f8ef7;--accent2:#3a6fd8;
+  --green:#3ecf8e;--red:#f05252;--amber:#f59e0b;--purple:#a78bfa;--teal:#2dd4bf;
+  --font:-apple-system,BlinkMacSystemFont,'SF Pro Display','Segoe UI',sans-serif;
+  --safe-top: env(safe-area-inset-top);
+  --safe-bottom: env(safe-area-inset-bottom);
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+body{background:var(--bg);color:var(--text);font-family:var(--font);font-size:14px;min-height:100vh;min-height:100dvh;overscroll-behavior:none;}
+.app{display:flex;flex-direction:column;min-height:100vh;min-height:100dvh;}
+
+/* Header */
+.header{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:calc(16px + var(--safe-top)) 20px 16px;
+  border-bottom:1px solid var(--border);background:var(--bg);
+  position:sticky;top:0;z-index:100;
+}
+.header-left{display:flex;align-items:center;gap:10px;}
+.logo{width:30px;height:30px;background:var(--accent);border-radius:8px;display:flex;align-items:center;justify-content:center;}
+.logo i{color:white;font-size:16px;}
+.header h1{font-size:15px;font-weight:600;letter-spacing:-0.3px;}
+.header-date{font-size:11px;color:var(--text2);}
+.add-btn{background:var(--accent);color:white;border:none;border-radius:8px;padding:8px 14px;font-size:13px;font-weight:500;cursor:pointer;display:flex;align-items:center;gap:5px;}
+.add-btn:active{background:var(--accent2);}
+
+/* Tab bar (bottom nav on mobile) */
+.tab-bar{
+  display:flex;position:fixed;bottom:0;left:0;right:0;z-index:100;
+  background:rgba(13,15,18,0.95);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
+  border-top:1px solid var(--border);
+  padding:8px 0 calc(8px + var(--safe-bottom));
+}
+.tab-item{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;cursor:pointer;padding:6px 0;border:none;background:none;color:var(--text3);transition:color 0.15s;}
+.tab-item.active{color:var(--accent);}
+.tab-item i{font-size:22px;}
+.tab-label{font-size:10px;font-weight:500;}
+
+/* Main scroll area */
+.main{
+  flex:1;overflow-y:auto;padding:16px 16px calc(80px + var(--safe-bottom));
+  -webkit-overflow-scrolling:touch;
+}
+
+/* Sections */
+.section{display:none;}
+.section.active{display:block;}
+
+/* Cards */
+.card{background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:14px;}
+.card+.card{margin-top:12px;}
+.card-title{font-size:10px;text-transform:uppercase;letter-spacing:0.8px;color:var(--text3);margin-bottom:8px;font-weight:600;}
+
+/* Metrics grid */
+.metrics-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px;}
+.metric-card{background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:14px;}
+.metric-value{font-size:24px;font-weight:700;letter-spacing:-0.5px;line-height:1;margin-bottom:3px;}
+.metric-unit{font-size:12px;color:var(--text2);font-weight:400;}
+.metric-delta{font-size:11px;margin-top:5px;display:flex;align-items:center;gap:3px;color:var(--text2);}
+.delta-down{color:var(--green);}
+.delta-up{color:var(--red);}
+
+/* Chart */
+.chart-card{background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:14px;margin-bottom:12px;}
+.chart-title{font-size:13px;font-weight:600;margin-bottom:12px;}
+
+/* Progress */
+.progress-wrap{background:var(--bg3);border-radius:4px;height:5px;overflow:hidden;margin-top:6px;}
+.progress-bar{height:100%;border-radius:4px;transition:width 0.4s;}
+
+/* Badges */
+.badge{display:inline-flex;align-items:center;padding:2px 7px;border-radius:20px;font-size:11px;font-weight:600;}
+.badge-green{background:rgba(62,207,142,0.15);color:var(--green);}
+.badge-red{background:rgba(240,82,82,0.15);color:var(--red);}
+.badge-amber{background:rgba(245,158,11,0.15);color:var(--amber);}
+.badge-blue{background:rgba(79,142,247,0.15);color:var(--accent);}
+
+/* Section header */
+.section-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;}
+.section-title{font-size:17px;font-weight:700;letter-spacing:-0.4px;}
+.section-sub{font-size:12px;color:var(--text2);margin-top:2px;}
+
+/* Habits */
+.habit-row{background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:12px 14px;display:flex;align-items:center;gap:10px;margin-bottom:8px;}
+.habit-icon{width:34px;height:34px;border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.habit-info{flex:1;min-width:0;}
+.habit-name{font-size:14px;font-weight:500;}
+.habit-streak{font-size:11px;color:var(--text2);margin-top:2px;}
+.habit-days{display:flex;gap:4px;}
+.day-dot{width:26px;height:26px;border-radius:6px;border:1px solid var(--border2);display:flex;align-items:center;justify-content:center;font-size:9px;cursor:pointer;transition:all 0.15s;flex-shrink:0;}
+.day-dot.done{background:var(--green);border-color:var(--green);color:#0d2818;}
+.day-dot.today{border-color:var(--accent);}
+
+/* History table */
+.history-item{padding:12px 0;border-bottom:1px solid var(--border);display:flex;align-items:flex-start;gap:10px;}
+.history-item:last-child{border-bottom:none;}
+.history-dot{width:8px;height:8px;border-radius:50%;margin-top:4px;flex-shrink:0;}
+
+/* Forms */
+.form-group{margin-bottom:12px;}
+.form-group label{display:block;font-size:11px;color:var(--text2);font-weight:500;margin-bottom:5px;text-transform:uppercase;letter-spacing:0.5px;}
+.form-input{background:var(--bg3);border:1px solid var(--border2);border-radius:8px;color:var(--text);font-size:16px;padding:11px 12px;outline:none;width:100%;font-family:var(--font);}
+.form-input:focus{border-color:var(--accent);}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+.form-btn{background:var(--accent);color:white;border:none;border-radius:10px;padding:14px;font-size:15px;font-weight:600;cursor:pointer;width:100%;margin-top:4px;font-family:var(--font);}
+.form-btn:active{background:var(--accent2);}
+.form-btn:disabled{opacity:0.5;}
+.form-select{background:var(--bg3);border:1px solid var(--border2);border-radius:8px;color:var(--text);font-size:16px;padding:11px 12px;outline:none;width:100%;font-family:var(--font);}
+
+/* Mood picker */
+.mood-row{display:flex;gap:6px;margin-bottom:4px;}
+.mood-btn{flex:1;padding:10px 4px;border-radius:8px;border:1px solid var(--border2);background:var(--bg3);cursor:pointer;text-align:center;font-size:22px;}
+.mood-btn.selected{border-color:var(--accent);background:rgba(79,142,247,0.15);}
+.mood-sublabel{font-size:9px;color:var(--text2);display:block;margin-top:2px;}
+
+/* Slider */
+input[type=range]{width:100%;accent-color:var(--accent);}
+
+/* Bottom sheet modal */
+.sheet-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:200;align-items:flex-end;justify-content:center;}
+.sheet-overlay.open{display:flex;}
+.sheet{background:var(--bg2);border-radius:20px 20px 0 0;width:100%;max-height:92vh;overflow-y:auto;padding:0 0 calc(16px + var(--safe-bottom));animation:slideUp 0.3s ease;}
+@keyframes slideUp{from{transform:translateY(100%);}to{transform:translateY(0);}}
+.sheet-handle{width:36px;height:4px;background:var(--border2);border-radius:2px;margin:12px auto 0;}
+.sheet-header{display:flex;align-items:center;justify-content:space-between;padding:16px 20px 0;}
+.sheet-title{font-size:16px;font-weight:700;}
+.sheet-close{background:var(--bg3);border:none;color:var(--text2);width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:16px;}
+.sheet-tabs{display:flex;gap:4px;background:var(--bg3);border-radius:10px;padding:4px;margin:14px 20px 0;}
+.sheet-tab{flex:1;padding:7px;border-radius:7px;font-size:12px;font-weight:500;cursor:pointer;text-align:center;color:var(--text2);border:none;background:none;}
+.sheet-tab.active{background:var(--bg2);color:var(--text);}
+.sheet-form{display:none;padding:16px 20px 0;}
+.sheet-form.active{display:block;}
+
+/* Toast */
+.toast{position:fixed;bottom:calc(80px + var(--safe-bottom) + 12px);left:50%;transform:translateX(-50%) translateY(20px);background:var(--bg3);border:1px solid var(--border2);border-radius:10px;padding:10px 16px;font-size:13px;z-index:999;opacity:0;transition:all 0.25s;white-space:nowrap;}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+.toast.success{border-color:var(--green);color:var(--green);}
+.toast.error{border-color:var(--red);color:var(--red);}
+
+/* Loading */
+.loading{text-align:center;padding:32px;color:var(--text3);}
+.loading i{font-size:28px;animation:spin 1s linear infinite;display:block;margin-bottom:8px;}
+@keyframes spin{to{transform:rotate(360deg);}}
+@keyframes pulse{0%,100%{opacity:1;}50%{opacity:0.4;}}
+.live-dot{width:6px;height:6px;background:var(--green);border-radius:50%;animation:pulse 2s infinite;display:inline-block;margin-right:5px;}
+
+/* Add habit btn */
+.add-habit-row{background:var(--bg3);border:1px dashed var(--border2);border-radius:10px;padding:12px 14px;display:flex;align-items:center;gap:8px;cursor:pointer;color:var(--text2);font-size:13px;width:100%;border-radius:10px;margin-top:4px;}
+.add-habit-row:active{border-color:var(--accent);color:var(--accent);}
+
+/* Shortcuts info card */
+.info-card{background:rgba(79,142,247,0.08);border:1px solid rgba(79,142,247,0.2);border-radius:12px;padding:14px;margin-bottom:12px;}
+.info-card-title{font-size:12px;font-weight:600;color:var(--accent);margin-bottom:6px;display:flex;align-items:center;gap:6px;}
+.info-card-text{font-size:12px;color:var(--text2);line-height:1.5;}
+
+::-webkit-scrollbar{display:none;}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- Header -->
+  <div class="header">
+    <div class="header-left">
+      <div class="logo"><i class="ti ti-heart-rate-monitor"></i></div>
+      <div>
+        <h1>Health Dashboard</h1>
+        <div class="header-date" id="headerDate"></div>
+      </div>
+    </div>
+    <button class="add-btn" onclick="openSheet()"><i class="ti ti-plus"></i> Zaznamenat</button>
+  </div>
+
+  <!-- Main content -->
+  <div class="main">
+
+    <!-- OVERVIEW -->
+    <div class="section active" id="section-overview">
+      <div style="display:flex;align-items:center;gap:6px;margin-bottom:14px;">
+        <span class="live-dot"></span>
+        <span style="font-size:12px;color:var(--text2);">Živá data · Supabase</span>
+      </div>
+
+      <div class="metrics-grid">
+        <div class="metric-card"><div class="card-title">Váha</div><div class="metric-value" id="ov-weight">— <span class="metric-unit">kg</span></div><div class="metric-delta" id="ov-weight-d">načítám...</div></div>
+        <div class="metric-card"><div class="card-title">Tlak</div><div class="metric-value" id="ov-bp" style="font-size:18px;">—/—</div><div class="metric-delta" id="ov-bp-d">načítám...</div></div>
+        <div class="metric-card"><div class="card-title">Body fat</div><div class="metric-value" id="ov-bf">— <span class="metric-unit">%</span></div><div class="metric-delta" id="ov-bf-d">načítám...</div></div>
+        <div class="metric-card"><div class="card-title">Nálada</div><div class="metric-value" id="ov-mood">— <span class="metric-unit">/10</span></div><div class="metric-delta" id="ov-mood-d">načítám...</div></div>
+      </div>
+
+      <div class="chart-card">
+        <div class="chart-title">Váha — trend</div>
+        <div style="position:relative;height:160px;"><canvas id="weightChart"></canvas></div>
+      </div>
+
+      <div class="metrics-grid" style="margin-bottom:12px;">
+        <div class="card"><div class="card-title">Návyky dnes</div><div style="font-size:24px;font-weight:700;margin:4px 0;" id="ov-habits">—/—</div><div class="progress-wrap"><div class="progress-bar" id="ov-habits-bar" style="width:0%;background:var(--accent);"></div></div></div>
+        <div class="card"><div class="card-title">Stres</div><div style="font-size:24px;font-weight:700;margin:4px 0;color:var(--amber);" id="ov-stress">— <span style="font-size:13px;color:var(--text2);font-weight:400;">/10</span></div><div style="font-size:11px;color:var(--text2);" id="ov-stress-l">načítám...</div></div>
+      </div>
+
+      <div class="chart-card">
+        <div class="chart-title">Nálada & Energie</div>
+        <div style="position:relative;height:140px;"><canvas id="moodChart"></canvas></div>
+      </div>
+    </div>
+
+    <!-- BODY -->
+    <div class="section" id="section-body">
+      <div class="section-header">
+        <div><div class="section-title">Tělo</div><div class="section-sub">Poslední měření</div></div>
+        <button class="add-btn" onclick="openSheet('body')"><i class="ti ti-plus"></i></button>
+      </div>
+      <div id="body-content"><div class="loading"><i class="ti ti-loader"></i>Načítám...</div></div>
+    </div>
+
+    <!-- MENTAL -->
+    <div class="section" id="section-mental">
+      <div class="section-header">
+        <div><div class="section-title">Psychika</div><div class="section-sub">Nálada, energie, stres</div></div>
+        <button class="add-btn" onclick="openSheet('mental')"><i class="ti ti-plus"></i></button>
+      </div>
+      <div id="mental-content"><div class="loading"><i class="ti ti-loader"></i>Načítám...</div></div>
+    </div>
+
+    <!-- HABITS -->
+    <div class="section" id="section-habits">
+      <div class="section-header">
+        <div><div class="section-title">Návyky</div><div class="section-sub">Posledních 7 dní</div></div>
+        <button class="add-btn" onclick="openAddHabit()"><i class="ti ti-plus"></i></button>
+      </div>
+      <div style="display:flex;justify-content:flex-end;gap:4px;margin-bottom:8px;" id="dayLabels"></div>
+      <div id="habitList"><div class="loading"><i class="ti ti-loader"></i>Načítám...</div></div>
+    </div>
+
+    <!-- HISTORY -->
+    <div class="section" id="section-history">
+      <div class="section-header"><div><div class="section-title">Historie</div><div class="section-sub">Všechny záznamy</div></div></div>
+      <div class="card" id="historyContent"><div class="loading"><i class="ti ti-loader"></i>Načítám...</div></div>
+    </div>
+
+  </div>
+
+  <!-- Tab bar -->
+  <div class="tab-bar">
+    <button class="tab-item active" onclick="showSection('overview',this)"><i class="ti ti-layout-dashboard"></i><span class="tab-label">Přehled</span></button>
+    <button class="tab-item" onclick="showSection('body',this)"><i class="ti ti-ruler"></i><span class="tab-label">Tělo</span></button>
+    <button class="tab-item" onclick="showSection('mental',this)"><i class="ti ti-brain"></i><span class="tab-label">Psychika</span></button>
+    <button class="tab-item" onclick="showSection('habits',this)"><i class="ti ti-checkbox"></i><span class="tab-label">Návyky</span></button>
+    <button class="tab-item" onclick="showSection('history',this)"><i class="ti ti-history"></i><span class="tab-label">Historie</span></button>
+  </div>
+</div>
+
+<!-- BOTTOM SHEET -->
+<div class="sheet-overlay" id="sheet">
+  <div class="sheet">
+    <div class="sheet-handle"></div>
+    <div class="sheet-header">
+      <div class="sheet-title">Nový záznam</div>
+      <button class="sheet-close" onclick="closeSheet()"><i class="ti ti-x"></i></button>
+    </div>
+    <div class="sheet-tabs">
+      <button class="sheet-tab active" onclick="switchTab('body',this)">Tělo</button>
+      <button class="sheet-tab" onclick="switchTab('bp',this)">Tlak</button>
+      <button class="sheet-tab" onclick="switchTab('mental',this)">Psychika</button>
+    </div>
+
+    <!-- Body form -->
+    <div class="sheet-form active" id="sf-body">
+      <div class="form-row"><div class="form-group"><label>Váha (kg)</label><input type="number" step="0.1" inputmode="decimal" class="form-input" id="f-weight" placeholder="82.4"></div><div class="form-group"><label>Body Fat (%)</label><input type="number" step="0.1" inputmode="decimal" class="form-input" id="f-bf" placeholder="17.2"></div></div>
+      <div class="form-row"><div class="form-group"><label>Pas (cm)</label><input type="number" inputmode="numeric" class="form-input" id="f-waist" placeholder="82"></div><div class="form-group"><label>Hrudník (cm)</label><input type="number" inputmode="numeric" class="form-input" id="f-chest" placeholder="96"></div></div>
+      <div class="form-row"><div class="form-group"><label>Paže (cm)</label><input type="number" inputmode="numeric" class="form-input" id="f-arm" placeholder="35"></div><div class="form-group"><label>Stehno (cm)</label><input type="number" inputmode="numeric" class="form-input" id="f-thigh" placeholder="58"></div></div>
+      <div class="form-group"><label>Klidová TF (bpm)</label><input type="number" inputmode="numeric" class="form-input" id="f-hr" placeholder="58"></div>
+      <div class="form-group"><label>Poznámka</label><input type="text" class="form-input" id="f-bnote" placeholder=""></div>
+      <button class="form-btn" id="btn-body" onclick="saveBody()">Uložit měření</button>
+    </div>
+
+    <!-- BP form -->
+    <div class="sheet-form" id="sf-bp">
+      <div class="form-row"><div class="form-group"><label>Systolický</label><input type="number" inputmode="numeric" class="form-input" id="f-sys" placeholder="118"></div><div class="form-group"><label>Diastolický</label><input type="number" inputmode="numeric" class="form-input" id="f-dia" placeholder="76"></div></div>
+      <div class="form-group"><label>TF (bpm)</label><input type="number" inputmode="numeric" class="form-input" id="f-bphr" placeholder="68"></div>
+      <div class="form-group"><label>Poznámka</label><input type="text" class="form-input" id="f-bpnote" placeholder="Ráno, nalačno..."></div>
+      <button class="form-btn" id="btn-bp" onclick="saveBP()">Uložit tlak</button>
+    </div>
+
+    <!-- Mental form -->
+    <div class="sheet-form" id="sf-mental">
+      <div class="form-group">
+        <label>Nálada</label>
+        <div class="mood-row">
+          <div class="mood-btn" onclick="selectMood(2,this)">😔<span class="mood-sublabel">2</span></div>
+          <div class="mood-btn" onclick="selectMood(4,this)">😕<span class="mood-sublabel">4</span></div>
+          <div class="mood-btn selected" onclick="selectMood(6,this)">😐<span class="mood-sublabel">6</span></div>
+          <div class="mood-btn" onclick="selectMood(8,this)">🙂<span class="mood-sublabel">8</span></div>
+          <div class="mood-btn" onclick="selectMood(10,this)">😄<span class="mood-sublabel">10</span></div>
+        </div>
+      </div>
+      <div class="form-group"><label>Energie — <span id="energy-val">7</span>/10</label><input type="range" min="1" max="10" value="7" id="f-energy" oninput="document.getElementById('energy-val').textContent=this.value"></div>
+      <div class="form-group"><label>Stres — <span id="stress-val">3</span>/10</label><input type="range" min="1" max="10" value="3" id="f-stress" oninput="document.getElementById('stress-val').textContent=this.value"></div>
+      <div class="form-group"><label>Spánek (h)</label><input type="number" step="0.5" inputmode="decimal" class="form-input" id="f-sleep" placeholder="7.5"></div>
+      <div class="form-group"><label>Poznámka</label><textarea class="form-input" id="f-note" rows="2" placeholder="Jak ses dnes cítil?..." style="resize:none;"></textarea></div>
+      <button class="form-btn" id="btn-mental" onclick="saveMental()">Uložit záznam</button>
+    </div>
+  </div>
+</div>
+
+<!-- ADD HABIT SHEET -->
+<div class="sheet-overlay" id="addHabitSheet">
+  <div class="sheet">
+    <div class="sheet-handle"></div>
+    <div class="sheet-header"><div class="sheet-title">Nový návyk</div><button class="sheet-close" onclick="document.getElementById('addHabitSheet').classList.remove('open')"><i class="ti ti-x"></i></button></div>
+    <div style="padding:16px 20px 0;">
+      <div class="form-group"><label>Název</label><input type="text" class="form-input" id="f-hname" placeholder="Ranní meditace..."></div>
+      <div class="form-group"><label>Ikona</label>
+        <select class="form-select" id="f-hicon">
+          <option value="ti-dumbbell">💪 Posilovna</option>
+          <option value="ti-droplet">💧 Hydratace</option>
+          <option value="ti-moon">😴 Spánek</option>
+          <option value="ti-yoga">🧘 Meditace</option>
+          <option value="ti-book">📚 Čtení</option>
+          <option value="ti-bike">🚴 Kolo</option>
+          <option value="ti-run">🏃 Běh</option>
+          <option value="ti-salad">🥗 Strava</option>
+        </select>
+      </div>
+      <div class="form-group"><label>Barva</label>
+        <div style="display:flex;gap:8px;" id="colorPicker">
+          <div onclick="pickColor('#4f8ef7',this)" style="width:30px;height:30px;border-radius:50%;background:#4f8ef7;cursor:pointer;border:2px solid white;"></div>
+          <div onclick="pickColor('#3ecf8e',this)" style="width:30px;height:30px;border-radius:50%;background:#3ecf8e;cursor:pointer;border:2px solid transparent;"></div>
+          <div onclick="pickColor('#f59e0b',this)" style="width:30px;height:30px;border-radius:50%;background:#f59e0b;cursor:pointer;border:2px solid transparent;"></div>
+          <div onclick="pickColor('#a78bfa',this)" style="width:30px;height:30px;border-radius:50%;background:#a78bfa;cursor:pointer;border:2px solid transparent;"></div>
+          <div onclick="pickColor('#2dd4bf',this)" style="width:30px;height:30px;border-radius:50%;background:#2dd4bf;cursor:pointer;border:2px solid transparent;"></div>
+          <div onclick="pickColor('#f05252',this)" style="width:30px;height:30px;border-radius:50%;background:#f05252;cursor:pointer;border:2px solid transparent;"></div>
+        </div>
+      </div>
+      <button class="form-btn" id="btn-habit" onclick="saveHabit()">Přidat návyk</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ── Config ──────────────────────────────────────────────
+const SB = 'https://hrneqybterqinixsyzhz.supabase.co';
+const KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhybmVxeWJ0ZXJxaW5peHN5emh6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA4ODkwNDksImV4cCI6MjA5NjQ2NTA0OX0.Rd27Ehn4UZRyPcudPsqB9SlLYnqOH1wymAFqBFn6kzo';
+const H = {'Content-Type':'application/json','apikey':KEY,'Authorization':'Bearer '+KEY,'Prefer':'return=representation'};
+
+const st = { mood:6, color:'#4f8ef7', charts:{} };
+
+// ── Supabase helpers ─────────────────────────────────────
+async function sbGet(table, q='') {
+  const r = await fetch(`${SB}/rest/v1/${table}?${q}`, {headers:H});
+  if(!r.ok) throw new Error(await r.text());
+  return r.json();
+}
+async function sbPost(table, body) {
+  const r = await fetch(`${SB}/rest/v1/${table}`, {method:'POST',headers:H,body:JSON.stringify(body)});
+  if(!r.ok) throw new Error(await r.text());
+  return r.status === 204 ? null : r.json();
+}
+async function sbDel(table, q) {
+  const r = await fetch(`${SB}/rest/v1/${table}?${q}`, {method:'DELETE',headers:H});
+  if(!r.ok) throw new Error(await r.text());
+}
+
+// ── UI helpers ───────────────────────────────────────────
+document.getElementById('headerDate').textContent = new Date().toLocaleDateString('cs-CZ',{weekday:'short',day:'numeric',month:'long'});
+
+function toast(msg, type='success') {
+  const t = document.getElementById('toast');
+  t.textContent = (type==='success'?'✓ ':'✕ ')+msg;
+  t.className = 'toast show '+type;
+  setTimeout(()=>t.className='toast',2800);
+}
+
+function showSection(id, el) {
+  document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
+  document.querySelectorAll('.tab-item').forEach(t=>t.classList.remove('active'));
+  document.getElementById('section-'+id).classList.add('active');
+  el.classList.add('active');
+  document.querySelector('.main').scrollTop = 0;
+  if(id==='body') loadBody();
+  if(id==='mental') loadMental();
+  if(id==='habits') loadHabits();
+  if(id==='history') loadHistory();
+}
+
+function openSheet(tab) {
+  document.getElementById('sheet').classList.add('open');
+  if(tab) {
+    document.querySelectorAll('.sheet-tab').forEach(t=>t.classList.remove('active'));
+    document.querySelectorAll('.sheet-form').forEach(f=>f.classList.remove('active'));
+    const idx = {body:0,bp:1,mental:2}[tab]||0;
+    document.querySelectorAll('.sheet-tab')[idx].classList.add('active');
+    document.getElementById('sf-'+(tab==='mental'?'mental':tab==='bp'?'bp':'body')).classList.add('active');
+  }
+}
+function closeSheet(){document.getElementById('sheet').classList.remove('open');}
+function switchTab(id,el){
+  document.querySelectorAll('.sheet-tab').forEach(t=>t.classList.remove('active'));
+  document.querySelectorAll('.sheet-form').forEach(f=>f.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById('sf-'+id).classList.add('active');
+}
+function selectMood(v,el){st.mood=v;document.querySelectorAll('.mood-btn').forEach(b=>b.classList.remove('selected'));el.classList.add('selected');}
+function pickColor(c,el){st.color=c;document.querySelectorAll('#colorPicker div').forEach(e=>e.style.border='2px solid transparent');el.style.border='2px solid white';}
+function openAddHabit(){document.getElementById('addHabitSheet').classList.add('open');}
+
+// ── Chart helpers ────────────────────────────────────────
+function mkChart(id, labels, datasets) {
+  if(st.charts[id]) st.charts[id].destroy();
+  const ctx = document.getElementById(id);
+  if(!ctx) return;
+  st.charts[id] = new Chart(ctx,{
+    type:'line',
+    data:{labels,datasets:datasets.map(d=>({label:d.l,data:d.d,borderColor:d.c,backgroundColor:d.fill||'transparent',borderWidth:2,pointRadius:2,pointBackgroundColor:d.c,tension:0.4,borderDash:d.dash||[],fill:!!d.fill}))},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:datasets.length>1,labels:{color:'#8b919e',font:{size:10},boxWidth:10,padding:12}}},scales:{x:{grid:{color:'rgba(255,255,255,0.04)'},ticks:{color:'#555c6b',font:{size:9},maxTicksLimit:6}},y:{grid:{color:'rgba(255,255,255,0.04)'},ticks:{color:'#555c6b',font:{size:9}}}}}
+  });
+}
+
+// ── Save functions ───────────────────────────────────────
+async function saveBody() {
+  const w = parseFloat(document.getElementById('f-weight').value);
+  if(!w){toast('Zadej alespoň váhu','error');return;}
+  const btn=document.getElementById('btn-body');
+  btn.disabled=true;btn.textContent='Ukládám...';
+  try {
+    await sbPost('body_measurements',{weight_kg:w,body_fat_pct:parseFloat(document.getElementById('f-bf').value)||null,waist_cm:parseFloat(document.getElementById('f-waist').value)||null,chest_cm:parseFloat(document.getElementById('f-chest').value)||null,arm_cm:parseFloat(document.getElementById('f-arm').value)||null,thigh_cm:parseFloat(document.getElementById('f-thigh').value)||null,resting_hr:parseInt(document.getElementById('f-hr').value)||null,notes:document.getElementById('f-bnote').value||null});
+    closeSheet();toast('Měření uloženo');loadOverview();
+  } catch(e){toast('Chyba: '+e.message,'error');}
+  btn.disabled=false;btn.textContent='Uložit měření';
+}
+
+async function saveBP() {
+  const sys=parseInt(document.getElementById('f-sys').value),dia=parseInt(document.getElementById('f-dia').value);
+  if(!sys||!dia){toast('Zadej systolický i diastolický','error');return;}
+  const btn=document.getElementById('btn-bp');
+  btn.disabled=true;btn.textContent='Ukládám...';
+  try {
+    await sbPost('blood_pressure',{systolic:sys,diastolic:dia,heart_rate:parseInt(document.getElementById('f-bphr').value)||null,notes:document.getElementById('f-bpnote').value||null});
+    closeSheet();toast('Tlak uložen');loadOverview();
+  } catch(e){toast('Chyba: '+e.message,'error');}
+  btn.disabled=false;btn.textContent='Uložit tlak';
+}
+
+async function saveMental() {
+  const btn=document.getElementById('btn-mental');
+  btn.disabled=true;btn.textContent='Ukládám...';
+  try {
+    await sbPost('mental_logs',{mood:st.mood,energy:parseInt(document.getElementById('f-energy').value),stress:parseInt(document.getElementById('f-stress').value),sleep_hours:parseFloat(document.getElementById('f-sleep').value)||null,notes:document.getElementById('f-note').value||null});
+    closeSheet();toast('Záznam uložen');loadOverview();
+  } catch(e){toast('Chyba: '+e.message,'error');}
+  btn.disabled=false;btn.textContent='Uložit záznam';
+}
+
+async function saveHabit() {
+  const name=document.getElementById('f-hname').value.trim();
+  if(!name){toast('Zadej název','error');return;}
+  const btn=document.getElementById('btn-habit');
+  btn.disabled=true;btn.textContent='Přidávám...';
+  try {
+    await sbPost('habits',{name,icon:document.getElementById('f-hicon').value,color:st.color,active:true});
+    document.getElementById('addHabitSheet').classList.remove('open');
+    document.getElementById('f-hname').value='';
+    toast('Návyk přidán');loadHabits();
+  } catch(e){toast('Chyba: '+e.message,'error');}
+  btn.disabled=false;btn.textContent='Přidat návyk';
+}
+
+async function toggleHabit(id,date,done) {
+  try {
+    if(done) await sbDel('habit_completions',`habit_id=eq.${id}&completed_date=eq.${date}`);
+    else await sbPost('habit_completions',{habit_id:id,completed_date:date});
+    loadHabits();loadOverview();
+  } catch(e){toast('Chyba','error');}
+}
+
+// ── Load functions ───────────────────────────────────────
+async function loadOverview() {
+  try {
+    const [body,bp,mental,habits,comps] = await Promise.all([
+      sbGet('body_measurements','select=weight_kg,body_fat_pct,recorded_at&order=recorded_at.desc&limit=10'),
+      sbGet('blood_pressure','select=systolic,diastolic,recorded_at&order=recorded_at.desc&limit=1'),
+      sbGet('mental_logs','select=mood,energy,stress,recorded_at&order=recorded_at.desc&limit=14'),
+      sbGet('habits','select=id,name&active=eq.true'),
+      sbGet('habit_completions','select=habit_id&completed_date=eq.'+new Date().toISOString().split('T')[0])
+    ]);
+
+    if(body?.length){
+      const l=body[0];
+      document.getElementById('ov-weight').innerHTML=l.weight_kg+' <span class="metric-unit">kg</span>';
+      if(body.length>1){const d=(l.weight_kg-body[body.length-1].weight_kg).toFixed(1);document.getElementById('ov-weight-d').innerHTML=`<i class="ti ti-trending-${d<=0?'down':'up'}"></i> ${d>0?'+':''}${d} kg`;document.getElementById('ov-weight-d').className='metric-delta '+(d<=0?'delta-down':'delta-up');}
+      else{document.getElementById('ov-weight-d').textContent='První záznam';}
+      document.getElementById('ov-bf').innerHTML=(l.body_fat_pct||'—')+' <span class="metric-unit">%</span>';
+      document.getElementById('ov-bf-d').textContent=l.body_fat_pct?'Poslední':'Nezadáno';
+      const labels=body.slice().reverse().map(b=>new Date(b.recorded_at).toLocaleDateString('cs-CZ',{day:'numeric',month:'numeric'}));
+      const data=body.slice().reverse().map(b=>b.weight_kg);
+      mkChart('weightChart',labels,[{l:'Váha',d:data,c:'#3ecf8e',fill:'rgba(62,207,142,0.08)'}]);
+    }
+
+    if(bp?.length){
+      const b=bp[0];
+      document.getElementById('ov-bp').textContent=b.systolic+'/'+b.diastolic;
+      const ok=b.systolic<120&&b.diastolic<80;
+      document.getElementById('ov-bp-d').innerHTML=`<span class="badge ${ok?'badge-green':'badge-amber'}">${ok?'Opt.':'Sledovat'}</span>`;
+    }
+
+    if(mental?.length){
+      const m=mental[0];
+      document.getElementById('ov-mood').innerHTML=m.mood+' <span class="metric-unit">/10</span>';
+      document.getElementById('ov-mood-d').textContent='Energie: '+m.energy+'/10';
+      document.getElementById('ov-stress').innerHTML=m.stress+' <span style="font-size:13px;color:var(--text2);font-weight:400;">/10</span>';
+      document.getElementById('ov-stress-l').textContent=m.stress<=3?'Nízký':m.stress<=6?'Střední':'Vysoký';
+      const ml=mental.slice().reverse();
+      mkChart('moodChart',ml.map(m=>new Date(m.recorded_at).toLocaleDateString('cs-CZ',{day:'numeric',month:'numeric'})),[{l:'Nálada',d:ml.map(m=>m.mood),c:'#4f8ef7'},{l:'Energie',d:ml.map(m=>m.energy),c:'#2dd4bf',dash:[4,2]}]);
+    }
+
+    if(habits?.length){
+      const ids=new Set((comps||[]).map(c=>c.habit_id));
+      const done=habits.filter(h=>ids.has(h.id)).length;
+      const pct=Math.round(done/habits.length*100);
+      document.getElementById('ov-habits').textContent=done+'/'+habits.length;
+      document.getElementById('ov-habits-bar').style.width=pct+'%';
+    }
+  } catch(e){toast('Chyba načítání','error');}
+}
+
+async function loadBody() {
+  const el=document.getElementById('body-content');
+  try {
+    const [body,bp]=await Promise.all([
+      sbGet('body_measurements','select=*&order=recorded_at.desc&limit=1'),
+      sbGet('blood_pressure','select=*&order=recorded_at.desc&limit=1')
+    ]);
+    if(!body?.length){el.innerHTML='<div class="loading">Žádná data — přidej první měření</div>';return;}
+    const l=body[0];
+    el.innerHTML=`
+      <div class="metrics-grid">
+        <div class="metric-card"><div class="card-title">Váha</div><div class="metric-value">${l.weight_kg||'—'} <span class="metric-unit">kg</span></div></div>
+        <div class="metric-card"><div class="card-title">Body Fat</div><div class="metric-value">${l.body_fat_pct||'—'} <span class="metric-unit">%</span></div></div>
+        <div class="metric-card"><div class="card-title">Klidová TF</div><div class="metric-value">${l.resting_hr||'—'} <span class="metric-unit">bpm</span></div></div>
+        <div class="metric-card"><div class="card-title">Pas</div><div class="metric-value">${l.waist_cm||'—'} <span class="metric-unit">cm</span></div></div>
+      </div>
+      <div class="card" style="margin-bottom:12px;">
+        <div class="card-title">Obvody</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:8px;">
+          <div><div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px;">Hrudník</div><div style="font-size:18px;font-weight:700;margin-top:2px;">${l.chest_cm||'—'} <span style="font-size:11px;color:var(--text2);">cm</span></div></div>
+          <div><div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px;">Paže</div><div style="font-size:18px;font-weight:700;margin-top:2px;">${l.arm_cm||'—'} <span style="font-size:11px;color:var(--text2);">cm</span></div></div>
+          <div><div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px;">Stehno</div><div style="font-size:18px;font-weight:700;margin-top:2px;">${l.thigh_cm||'—'} <span style="font-size:11px;color:var(--text2);">cm</span></div></div>
+        </div>
+      </div>
+      ${bp?.length?`<div class="card">
+        <div class="card-title">Krevní tlak</div>
+        <div style="display:flex;align-items:baseline;gap:6px;margin:8px 0;">
+          <span style="font-size:28px;font-weight:700;color:${bp[0].systolic<120?'var(--green)':'var(--amber)'};">${bp[0].systolic}</span>
+          <span style="color:var(--text2);">/</span>
+          <span style="font-size:28px;font-weight:700;color:${bp[0].systolic<120?'var(--green)':'var(--amber)'};">${bp[0].diastolic}</span>
+          <span style="font-size:12px;color:var(--text2);">mmHg</span>
+        </div>
+        <span class="badge ${bp[0].systolic<120?'badge-green':'badge-amber'}">${bp[0].systolic<120?'Optimální':'Sledovat'}</span>
+      </div>`:''}
+      <div style="margin-top:8px;font-size:11px;color:var(--text3);">Poslední měření: ${new Date(l.recorded_at).toLocaleDateString('cs-CZ')}</div>
+    `;
+  } catch(e){el.innerHTML='<div class="loading">Chyba načítání</div>';}
+}
+
+async function loadMental() {
+  const el=document.getElementById('mental-content');
+  try {
+    const data=await sbGet('mental_logs','select=*&order=recorded_at.desc&limit=14');
+    if(!data?.length){el.innerHTML='<div class="loading">Žádné záznamy</div>';return;}
+    const avg=k=>(data.reduce((s,d)=>s+d[k],0)/data.length).toFixed(1);
+    const moji=v=>v<=2?'😔':v<=4?'😕':v<=6?'😐':v<=8?'🙂':'😄';
+    const ml=data.slice().reverse();
+    el.innerHTML=`
+      <div class="metrics-grid" style="margin-bottom:12px;">
+        <div class="metric-card"><div class="card-title">Nálada avg</div><div class="metric-value">${avg('mood')} <span class="metric-unit">/10</span></div><div class="progress-wrap"><div class="progress-bar" style="width:${avg('mood')*10}%;background:var(--accent);"></div></div></div>
+        <div class="metric-card"><div class="card-title">Stres avg</div><div class="metric-value" style="color:var(--amber);">${avg('stress')} <span class="metric-unit">/10</span></div><div class="progress-wrap"><div class="progress-bar" style="width:${avg('stress')*10}%;background:var(--amber);"></div></div></div>
+      </div>
+      <div class="chart-card" style="margin-bottom:12px;">
+        <div class="chart-title">Nálada, Energie, Stres</div>
+        <div style="position:relative;height:160px;"><canvas id="mentalChart"></canvas></div>
+      </div>
+      <div class="card">
+        <div class="card-title">Poslední záznamy</div>
+        ${data.slice(0,5).map(l=>`
+          <div class="history-item">
+            <span style="font-size:22px;">${moji(l.mood)}</span>
+            <div style="flex:1;">
+              <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:3px;">
+                <span style="font-size:11px;color:var(--text2);">${new Date(l.recorded_at).toLocaleDateString('cs-CZ')}</span>
+                <span class="badge badge-blue">😊 ${l.mood}/10</span>
+                <span class="badge ${l.stress>6?'badge-red':l.stress>3?'badge-amber':'badge-green'}">😤 ${l.stress}/10</span>
+              </div>
+              ${l.notes?`<div style="font-size:12px;color:var(--text2);">${l.notes}</div>`:''}
+              <div style="font-size:11px;color:var(--text3);margin-top:2px;">Energie ${l.energy}/10${l.sleep_hours?' · '+l.sleep_hours+'h spánku':''}</div>
+            </div>
+          </div>`).join('')}
+      </div>
+    `;
+    mkChart('mentalChart',ml.map(m=>new Date(m.recorded_at).toLocaleDateString('cs-CZ',{day:'numeric',month:'numeric'})),[{l:'Nálada',d:ml.map(m=>m.mood),c:'#4f8ef7'},{l:'Energie',d:ml.map(m=>m.energy),c:'#2dd4bf',dash:[4,2]},{l:'Stres',d:ml.map(m=>m.stress),c:'#f59e0b',dash:[6,3]}]);
+  } catch(e){el.innerHTML='<div class="loading">Chyba načítání</div>';}
+}
+
+async function loadHabits() {
+  const today=new Date().toISOString().split('T')[0];
+  const days7=Array.from({length:7},(_,i)=>{const d=new Date();d.setDate(d.getDate()-6+i);return d.toISOString().split('T')[0];});
+  const dayN=['Ne','Po','Út','St','Čt','Pá','So'];
+  document.getElementById('dayLabels').innerHTML=days7.map(d=>{const dn=new Date(d+'T12:00:00');return`<div style="width:26px;text-align:center;font-size:9px;color:var(--text3);font-weight:600;">${dayN[dn.getDay()]}</div>`;}).join('');
+  const el=document.getElementById('habitList');
+  try {
+    const [habits,comps]=await Promise.all([
+      sbGet('habits','select=*&order=created_at.asc&active=eq.true'),
+      sbGet('habit_completions',`select=habit_id,completed_date&completed_date=gte.${days7[0]}&completed_date=lte.${today}`)
+    ]);
+    const cs=new Set((comps||[]).map(c=>c.habit_id+'|'+c.completed_date));
+    if(!habits?.length){el.innerHTML='<div class="loading">Žádné návyky</div><button class="add-habit-row" onclick="openAddHabit()"><i class="ti ti-plus"></i> Přidat první návyk</button>';return;}
+    el.innerHTML=habits.map(h=>{
+      let streak=0;
+      for(let i=6;i>=0;i--){const d=new Date();d.setDate(d.getDate()-i);if(cs.has(h.id+'|'+d.toISOString().split('T')[0]))streak++;else if(i<6)break;}
+      return `<div class="habit-row">
+        <div class="habit-icon" style="background:${h.color}22;color:${h.color};"><i class="ti ${h.icon}" style="font-size:16px;"></i></div>
+        <div class="habit-info"><div class="habit-name">${h.name}</div><div class="habit-streak">🔥 ${streak} dní</div></div>
+        <div class="habit-days">${days7.map(d=>{const done=cs.has(h.id+'|'+d);return`<div class="day-dot ${done?'done':''} ${d===today?'today':''}" onclick="toggleHabit('${h.id}','${d}',${done})">${done?'✓':''}</div>`;}).join('')}</div>
+      </div>`;
+    }).join('')+'<button class="add-habit-row" onclick="openAddHabit()"><i class="ti ti-plus" style="font-size:16px;"></i> Přidat návyk</button>';
+  } catch(e){el.innerHTML='<div class="loading">Chyba načítání</div>';}
+}
+
+async function loadHistory() {
+  const el=document.getElementById('historyContent');
+  try {
+    const [body,bp,mental]=await Promise.all([
+      sbGet('body_measurements','select=recorded_at,weight_kg,body_fat_pct&order=recorded_at.desc&limit=20'),
+      sbGet('blood_pressure','select=recorded_at,systolic,diastolic&order=recorded_at.desc&limit=20'),
+      sbGet('mental_logs','select=recorded_at,mood,stress,energy&order=recorded_at.desc&limit=20')
+    ]);
+    const rows=[];
+    (body||[]).forEach(l=>rows.push({at:l.recorded_at,type:'Tělo',val:`${l.weight_kg} kg${l.body_fat_pct?' · BF '+l.body_fat_pct+'%':''}`,color:'var(--green)'}));
+    (bp||[]).forEach(l=>rows.push({at:l.recorded_at,type:'Tlak',val:`${l.systolic}/${l.diastolic} mmHg`,color:l.systolic<120?'var(--green)':'var(--amber)'}));
+    (mental||[]).forEach(l=>rows.push({at:l.recorded_at,type:'Psychika',val:`😊${l.mood} 😤${l.stress} ⚡${l.energy}`,color:'var(--accent)'}));
+    rows.sort((a,b)=>b.at.localeCompare(a.at));
+    if(!rows.length){el.innerHTML='<div class="loading">Žádné záznamy</div>';return;}
+    el.innerHTML=rows.map(r=>`
+      <div class="history-item">
+        <div class="history-dot" style="background:${r.color};margin-top:5px;"></div>
+        <div style="flex:1;">
+          <div style="display:flex;justify-content:space-between;align-items:center;">
+            <span style="font-size:13px;font-weight:500;">${r.type}</span>
+            <span style="font-size:11px;color:var(--text3);">${new Date(r.at).toLocaleDateString('cs-CZ')} ${new Date(r.at).toLocaleTimeString('cs-CZ',{hour:'2-digit',minute:'2-digit'})}</span>
+          </div>
+          <div style="font-size:12px;color:var(--text2);margin-top:2px;">${r.val}</div>
+        </div>
+      </div>`).join('');
+  } catch(e){el.innerHTML='<div class="loading">Chyba načítání</div>';}
+}
+
+// ── PWA install prompt ───────────────────────────────────
+if('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('sw.js').catch(()=>{});
+  });
+}
+
+// ── Init ─────────────────────────────────────────────────
+loadOverview();
+</script>
+</body>
+</html>
